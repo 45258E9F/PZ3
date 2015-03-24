@@ -5,7 +5,7 @@ Introduction
 -------------
 PZ3 is a parallel SMT solver from the paper "Parallelizing SMT Solving: Lazy Decomposition + Conciliation". It is based on Z3 project(http://z3.codeplex.com) by Microsoft Research. Although PZ3 only supports QF_UF theory for now, we plan to extend PZ3 to other popular theories such as QF_DL, QF_LRA.
 
-Download PZ3: http://git.io/hptC
+Download PZ3 (with benchmark files): http://git.io/hptC
 
 Requirements
 -------------
