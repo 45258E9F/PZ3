@@ -5,6 +5,7 @@ Introduction
 -------------
 PZ3 is a parallel SMT solver from the paper "Parallelizing SMT Solving: Lazy Decomposition + Conciliation". It is based on Z3 project(http://z3.codeplex.com) by Microsoft Research.
 
+Download PZ3: http://git.io/hptC
 
 Requirement
 -------------
