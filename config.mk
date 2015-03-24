@@ -1,0 +1,11 @@
+CXX=g++
+CXXFLAGS=-g -Wall -O2
+CXX_OUT_FLAG=-c
+LINK_OUT_FLAG=-o
+LINK_EXTRA_FLAGS=-lz3 -lpthread
+CXX_EXT=.cpp
+HXX_EXT=.hpp
+EXE_EXT=
+OBJ_EXT=.o
+LIB_EXT=.a
+
