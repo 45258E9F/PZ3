@@ -1,6 +1,5 @@
-PZ3
-=======
-
+Download
+--------
 __Download PZ3 (with benchmark files)__: http://git.io/hptC
 
 Introduction
