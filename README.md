@@ -7,7 +7,7 @@ PZ3 is a parallel SMT solver from the paper "Parallelizing SMT Solving: Lazy Dec
 
 Download PZ3: http://git.io/hptC
 
-Requirement
+Requirements
 -------------
 OS: Linux distributions
 
