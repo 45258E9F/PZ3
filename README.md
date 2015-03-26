@@ -41,4 +41,8 @@ For example, if you want to solve `test.smt2` with 4 cores, you can execute
 
     pz3 test.smt2 4
 
-Note: it is not recommended to specify the number of cores larger than the number of physical cores because overall performance may degrade significantly.
+Note: 
+
+1. it is not recommended to specify the number of cores larger than the number of physical cores because overall performance may degrade significantly.
+2. when `Number of cores` is specified with 1, we are using sequential Z3 to solve the benchmark file.
+
