@@ -41,8 +41,21 @@ For example, if you want to solve `test.smt2` with 4 cores, you can execute
 
     pz3 test.smt2 4
 
-Note: 
 
-1. it is not recommended to specify the number of cores larger than the number of physical cores because overall performance may degrade significantly.
+Note 
+-----
+1. it is not recommended to specify `Number of cores` larger than the number of physical cores because overall performance may degrade significantly.
 2. when `Number of cores` is specified with 1, we are using sequential Z3 to solve the benchmark file.
+3. PZ3 calls `Z3_interpolate_proof` but in some versions of Z3 this API is not available. If you have problem building or running the program, you should add the codes below into `src/api/z3_interp.h`.
 
+```c
+void Z3_API Z3_interpolate_proof(Z3_context ctx,
+                            Z3_ast proof,
+                            int num,
+                            Z3_ast *cnsts,
+                            unsigned *parents,
+                            Z3_params options,
+                            Z3_ast *interps,
+                            int num_theory,
+                            Z3_ast *theory);
+```
