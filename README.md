@@ -15,7 +15,7 @@ CPU: multi-core CPU with more than 4 cores
 Memory: 8GB or higher
 
 
-Buiding & Configuration
+Building & Configuration
 ---------------------------
 **1.** Download source code of Z3 from http://z3.codeplex.com/. You can download Z3 4.3.2 from master branch or 4.3.3 from unstable branch. Please ensure that you are not using an older Z3 because old version has relatively poor support on interpolation.
 
