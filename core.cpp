@@ -4,6 +4,10 @@
 
 #define MAX_STACK_SIZE_PER_THREAD 300 * 1024 * 1024
 
+#ifdef PZ3_PROFILING
+typedef boost::chrono::high_resolution_clock boost_clock;
+#endif
+
 std::string file_path;
 unsigned core_num;
 contextManager cm;
@@ -112,6 +116,11 @@ void get_args(char *const argv[])
 
 PZ3_Result solve_file()
 {
+
+#ifdef PZ3_PROFILING
+	boost_clock::time_point division_start = boost_clock::now();
+#endif
+
     // Step 1: Preprocessing (Problem division)
     // If core_num is 1, it is just a sequential version of Z3
     if (core_num == 1)
@@ -186,6 +195,14 @@ PZ3_Result solve_file()
     exit(0);
 #endif
 
+#ifdef PZ3_PROFILING
+	std::cout << "DECOMPOSITION: " << boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - division_start) << std::endl;
+#endif
+
+#ifdef PZ3_PROFILING
+	boost_clock::time_point subsolve_start = boost_clock::now();
+#endif
+
     // Solve sub-formuals in parallel
     thread_handles = (pthread_t *) malloc(core_num * sizeof(pthread_t));
     pthread_attr_t attr_subsolve;
@@ -209,6 +226,14 @@ PZ3_Result solve_file()
         pthread_join(thread_handles[i], NULL);
     }
     free(thread_handles);
+
+#ifdef PZ3_PROFILING
+	std::cout << "SUBSOLVE: " << boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - subsolve_start) << std::endl;
+#endif
+
+#ifdef PZ3_PROFILING
+	boost_clock::time_point conciliate_start = boost_clock::now();
+#endif
 
     // Step 2: Reconciliation
     // Collect variable information for formulas in each core
@@ -264,6 +289,10 @@ PZ3_Result solve_file()
     {
         pthread_join(thread_handles[i], NULL);
     }
+
+#ifdef PZ3_PROFILING
+	std::cout << "SUBSOLVE: " << boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - conciliate_start) << std::endl;
+#endif
 
     switch ((long) tret)
     {
@@ -929,7 +958,6 @@ void *master_func(void *arg)
                 int this_rank = it->first;
                 model & this_model = it->second;
                 std::map<closure, closure> & this_table = table_list.at(this_rank);
-                std::map<unsigned, expr> & this_var = var_expr.at(this_rank);
                 std::map<unsigned, func_decl> & this_fun = fun_expr.at(this_rank);
                 for(std::map<unsigned, func_decl>::iterator fun_it = this_fun.begin(); fun_it != this_fun.end(); fun_it++)
                 {
