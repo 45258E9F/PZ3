@@ -4,9 +4,7 @@
 
 #define MAX_STACK_SIZE_PER_THREAD 300 * 1024 * 1024
 
-#ifdef PZ3_PROFILING
 typedef boost::chrono::high_resolution_clock boost_clock;
-#endif
 
 std::string file_path;
 unsigned core_num;
@@ -86,7 +84,16 @@ int main(int argc, char *argv[])
     pthread_barrier_init(&dist_barrier, NULL, core_num);
     expr_table = std::vector<std::vector<expr> >(core_num);
 
+#ifndef PZ3_PROFILING
+	boost_clock::time_point total_start = boost_clock::now();
+#endif
+
     fresult = solve_file();
+
+#ifndef PZ3_PROFILING
+	std::cout << "TOTAL: " << boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - total_start) << std::endl;
+#endif
+
     switch (fresult)
     {
     case PZ3_unsat:

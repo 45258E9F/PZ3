@@ -1,3 +1,8 @@
 *.o
+*.pyc
+__py_cache__
 pz3*
 bm/
+eval/output/
+
+eval/.idea/workspace.xml
