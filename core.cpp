@@ -298,7 +298,7 @@ PZ3_Result solve_file()
     }
 
 #ifdef PZ3_PROFILING
-	std::cout << "SUBSOLVE: " << boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - conciliate_start) << std::endl;
+	std::cout << "CONCILIATION: " << boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - conciliate_start) << std::endl;
 #endif
 
     switch ((long) tret)
