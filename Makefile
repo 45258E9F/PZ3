@@ -11,9 +11,14 @@ pz3$(EXE_EXT): core$(CXX_EXT) contextManager$(OBJ_EXT) dist/dist$(OBJ_EXT)
 	@echo compiled core.cpp
 
 pz3_prof$(EXE_EXT): core$(CXX_EXT) contextManager$(OBJ_EXT) dist/dist$(OBJ_EXT)
-	@$(CXX) $(MACRO_FLAG)$(MACRO_DEFINES) $(CXXFLAGS) $(LINK_OUT_FLAG) pz3_prof$(EXE_EXT) $^ $(LINK_EXTRA_FLAGS)
+	@$(CXX) $(MACRO_FLAG)$(PROFILE_MACRO) $(CXXFLAGS) $(LINK_OUT_FLAG) pz3_prof$(EXE_EXT) $^ $(LINK_EXTRA_FLAGS)
 	@echo compiled core.cpp
 	@echo generated executable with profiling on
+
+pz3_oc$(EXE_EXT): core$(CXX_EXT) contextManager$(OBJ_EXT) dist/dist$(OBJ_EXT)
+	@$(CXX) $(MACRO_FLAG)$(ONECORE_MACRO) $(CXXFLAGS) $(LINK_OUT_FLAG) pz3_prof$(EXE_EXT) $^ $(LINK_EXTRA_FLAGS)
+	@echo compiled core.cpp
+	@echo generated executable enforced to use one core
 
 contextManager$(OBJ_EXT): contextManager$(CXX_EXT)
 	@$(CXX) $(CXXFLAGS) $(CXX_OUT_FLAG) $<

@@ -215,12 +215,13 @@ PZ3_Result solve_file()
     pthread_attr_t attr_subsolve;
     cpu_set_t cpus;
     pthread_attr_init(&attr_subsolve);
-
     for (unsigned i = 0; i < core_num; i++)
     {
+#ifndef PZ3_ONECORE
         CPU_ZERO(&cpus);
         CPU_SET(i, &cpus);
         pthread_attr_setaffinity_np(&attr_subsolve, sizeof(cpu_set_t), &cpus);
+#endif
         pthread_create(&thread_handles[i], &attr_subsolve, subsolve, (void *) ((long) i));
     }
 
@@ -274,21 +275,25 @@ PZ3_Result solve_file()
 #endif
 
     thread_handles = (pthread_t *) malloc((core_num + 1) * sizeof(pthread_t));
-    pthread_attr_t attr;
+	pthread_attr_t attr;
     pthread_attr_init(&attr);
     pthread_attr_setstacksize(&attr, MAX_STACK_SIZE_PER_THREAD);
     for (unsigned i = 0; i < core_num; i++)
     {
+#ifndef PZ3_ONECORE
         CPU_ZERO(&cpus);
         CPU_SET(i, &cpus);
         pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
+#endif
         pthread_create(&thread_handles[i], &attr, slave_func,
                        (void *) ((long) i));
     }
+#ifndef PZ3_ONECORE
     CPU_ZERO(&cpus);
     CPU_SET(PZ3_MASTER_THREAD, &cpus);
     pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
-    pthread_create(&thread_handles[core_num], &attr, master_func, NULL);
+#endif    
+	pthread_create(&thread_handles[core_num], &attr, master_func, NULL);
 
     void *tret;
     pthread_join(thread_handles[core_num], &tret);
