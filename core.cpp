@@ -2,7 +2,7 @@
 #include "contextManager.hpp"
 #include "dist/dist.hpp"
 
-#define MAX_STACK_SIZE_PER_THREAD 300 * 1024 * 1024
+#define MAX_STACK_SIZE_PER_THREAD 4000u * 1024u * 1024u
 
 typedef boost::chrono::high_resolution_clock boost_clock;
 
@@ -83,16 +83,8 @@ int main(int argc, char *argv[])
     pthread_barrier_init(&stat_barrier, NULL, core_num);
     pthread_barrier_init(&dist_barrier, NULL, core_num);
     expr_table = std::vector<std::vector<expr> >(core_num);
-
-#ifndef PZ3_PROFILING
-	boost_clock::time_point total_start = boost_clock::now();
-#endif
-
+	
     fresult = solve_file();
-
-#ifndef PZ3_PROFILING
-	std::cout << "TOTAL: " << boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - total_start) << std::endl;
-#endif
 
     switch (fresult)
     {
@@ -213,7 +205,9 @@ PZ3_Result solve_file()
     // Solve sub-formuals in parallel
     thread_handles = (pthread_t *) malloc(core_num * sizeof(pthread_t));
     pthread_attr_t attr_subsolve;
+#ifndef PZ3_ONECORE
     cpu_set_t cpus;
+#endif
     pthread_attr_init(&attr_subsolve);
     for (unsigned i = 0; i < core_num; i++)
     {

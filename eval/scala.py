@@ -1,8 +1,9 @@
-import os
-import re
-import sys
 import getopt
+import os
 import subprocess
+import sys
+import time
+
 import openpyxl
 
 
@@ -57,33 +58,22 @@ def evaluate(tool, bench_dir, max_core, timeout, export_stat):
             for num_core in range(1, max_core + 1):
                 args.append(str(num_core))
                 try:
+                    start_time = time.time()
                     result = subprocess.run(args, stdout=subprocess.PIPE, timeout=timeout_value)
                     if result.returncode == 0:
-                        duration = load_duration(result.stdout)
+                        duration = int(round((time.time() - start_time) * 1000.0))
                         raw_result.append((smt_file, num_core, duration))
                 except subprocess.TimeoutExpired:
                     # if we have triggered timeout exception, the specified timeout must be greater than 0
-                    raw_result.append((smt_file, num_core, timeout_value))
+                    raw_result.append((smt_file, num_core, '*'))
                 args.pop()
             # after finished a case, we write the partial result to the file in case that the machine stops working
             # unexpectedly
             export_result(raw_result, export_stat)
             raw_result.clear()
+            print(smt_file)
             args.pop()
     return raw_result
-
-time_pattern = re.compile(r"TOTAL: (\d+)\D+")
-
-
-def load_duration(output_str):
-    total_time = ''
-    lines = output_str.decode('utf-8').split('\n')
-    for line in lines:
-        match = re.match(time_pattern, line)
-        if match:
-            total_time = int(match.group(1))
-            break
-    return total_time
 
 case_name_column = 1
 core_num_column = 2
