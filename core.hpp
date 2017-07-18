@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <ctime>
 #include <boost/shared_ptr.hpp>
+#include <boost/chrono.hpp>
 
 //#define PZ3_PRINT_TRACE
 //#define PZ3_DIST

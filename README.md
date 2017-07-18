@@ -17,7 +17,7 @@ Memory: 8GB or higher
 
 Building & Configuration
 ---------------------------
-**1.** Download source code of Z3 from http://z3.codeplex.com/. You can download Z3 4.3.2 from master branch or 4.3.3 from unstable branch. Please ensure that you are not using an older Z3 because old version has relatively poor support on interpolation.
+**1.** Download source code of Z3 from http://z3.codeplex.com/. You can download Z3 4.3.2 from master branch or 4.3.3 from unstable branch. Please ensure that you are not using an older Z3 because old version has relatively poor support on interpolation. (UPDATE: If you use Z3 4.4.0 or higher, PZ3 would have segmentation fault due to some changes on interpolation API)
 
 **2.** Build Z3 from source and install it using the following commands:
 

@@ -2,7 +2,9 @@
 #include "contextManager.hpp"
 #include "dist/dist.hpp"
 
-#define MAX_STACK_SIZE_PER_THREAD 300 * 1024 * 1024
+#define MAX_STACK_SIZE_PER_THREAD 4000u * 1024u * 1024u
+
+typedef boost::chrono::high_resolution_clock boost_clock;
 
 std::string file_path;
 unsigned core_num;
@@ -81,8 +83,9 @@ int main(int argc, char *argv[])
     pthread_barrier_init(&stat_barrier, NULL, core_num);
     pthread_barrier_init(&dist_barrier, NULL, core_num);
     expr_table = std::vector<std::vector<expr> >(core_num);
-
+	
     fresult = solve_file();
+
     switch (fresult)
     {
     case PZ3_unsat:
@@ -112,6 +115,11 @@ void get_args(char *const argv[])
 
 PZ3_Result solve_file()
 {
+
+#ifdef PZ3_PROFILING
+	boost_clock::time_point division_start = boost_clock::now();
+#endif
+
     // Step 1: Preprocessing (Problem division)
     // If core_num is 1, it is just a sequential version of Z3
     if (core_num == 1)
@@ -186,17 +194,28 @@ PZ3_Result solve_file()
     exit(0);
 #endif
 
+#ifdef PZ3_PROFILING
+	std::cout << "DECOMPOSITION: " << boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - division_start) << std::endl;
+#endif
+
+#ifdef PZ3_PROFILING
+	boost_clock::time_point subsolve_start = boost_clock::now();
+#endif
+
     // Solve sub-formuals in parallel
     thread_handles = (pthread_t *) malloc(core_num * sizeof(pthread_t));
     pthread_attr_t attr_subsolve;
+#ifndef PZ3_ONECORE
     cpu_set_t cpus;
+#endif
     pthread_attr_init(&attr_subsolve);
-
     for (unsigned i = 0; i < core_num; i++)
     {
+#ifndef PZ3_ONECORE
         CPU_ZERO(&cpus);
         CPU_SET(i, &cpus);
         pthread_attr_setaffinity_np(&attr_subsolve, sizeof(cpu_set_t), &cpus);
+#endif
         pthread_create(&thread_handles[i], &attr_subsolve, subsolve, (void *) ((long) i));
     }
 
@@ -209,6 +228,14 @@ PZ3_Result solve_file()
         pthread_join(thread_handles[i], NULL);
     }
     free(thread_handles);
+
+#ifdef PZ3_PROFILING
+	std::cout << "SUBSOLVE: " << boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - subsolve_start) << std::endl;
+#endif
+
+#ifdef PZ3_PROFILING
+	boost_clock::time_point conciliate_start = boost_clock::now();
+#endif
 
     // Step 2: Reconciliation
     // Collect variable information for formulas in each core
@@ -242,21 +269,25 @@ PZ3_Result solve_file()
 #endif
 
     thread_handles = (pthread_t *) malloc((core_num + 1) * sizeof(pthread_t));
-    pthread_attr_t attr;
+	pthread_attr_t attr;
     pthread_attr_init(&attr);
     pthread_attr_setstacksize(&attr, MAX_STACK_SIZE_PER_THREAD);
     for (unsigned i = 0; i < core_num; i++)
     {
+#ifndef PZ3_ONECORE
         CPU_ZERO(&cpus);
         CPU_SET(i, &cpus);
         pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
+#endif
         pthread_create(&thread_handles[i], &attr, slave_func,
                        (void *) ((long) i));
     }
+#ifndef PZ3_ONECORE
     CPU_ZERO(&cpus);
     CPU_SET(PZ3_MASTER_THREAD, &cpus);
     pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
-    pthread_create(&thread_handles[core_num], &attr, master_func, NULL);
+#endif    
+	pthread_create(&thread_handles[core_num], &attr, master_func, NULL);
 
     void *tret;
     pthread_join(thread_handles[core_num], &tret);
@@ -264,6 +295,10 @@ PZ3_Result solve_file()
     {
         pthread_join(thread_handles[i], NULL);
     }
+
+#ifdef PZ3_PROFILING
+	std::cout << "CONCILIATION: " << boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - conciliate_start) << std::endl;
+#endif
 
     switch ((long) tret)
     {
@@ -432,7 +467,7 @@ void fs_to_cnf(int const my_rank, expr &fs, expr_vector &list)
     g.add(fs);
 
     params p_simp(ctx);
-    p_simp.set(":elim-and", true);
+    p_simp.set(":elim_and", true);
     tactic t = with(tactic(ctx, "simplify"), p_simp)
                & tactic(ctx, "elim-term-ite") & tactic(ctx, "tseitin-cnf");
     apply_result aresult = t.apply(g);
@@ -929,7 +964,6 @@ void *master_func(void *arg)
                 int this_rank = it->first;
                 model & this_model = it->second;
                 std::map<closure, closure> & this_table = table_list.at(this_rank);
-                std::map<unsigned, expr> & this_var = var_expr.at(this_rank);
                 std::map<unsigned, func_decl> & this_fun = fun_expr.at(this_rank);
                 for(std::map<unsigned, func_decl>::iterator fun_it = this_fun.begin(); fun_it != this_fun.end(); fun_it++)
                 {
