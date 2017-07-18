@@ -467,7 +467,7 @@ void fs_to_cnf(int const my_rank, expr &fs, expr_vector &list)
     g.add(fs);
 
     params p_simp(ctx);
-    p_simp.set(":elim-and", true);
+    p_simp.set(":elim_and", true);
     tactic t = with(tactic(ctx, "simplify"), p_simp)
                & tactic(ctx, "elim-term-ite") & tactic(ctx, "tseitin-cnf");
     apply_result aresult = t.apply(g);

@@ -5,6 +5,7 @@ import sys
 import random
 
 import math
+from collections import defaultdict
 
 import openpyxl
 
@@ -67,8 +68,9 @@ class Literal:
     """
 
     def __init__(self, edge, is_eq):
-        self.left = edge.left
-        self.right = edge.right
+        # edge is a binary tuple
+        self.left = edge[0]
+        self.right = edge[1]
         self.is_eq = is_eq
 
     def print(self, symbols):
@@ -78,24 +80,36 @@ class Literal:
         return result
 
 
-class Edge:
+class Graph:
     """
-    The class for representing (in)equality without the predicate
+    A class for representing graphs
     """
-    def __init__(self, left, right):
-        self.left = left
-        self.right = right
+    def __init__(self):
+        self._graph = defaultdict(set)
+        self._counter = 0
+        self._threshold = 0
 
-    def __eq__(self, other):
-        if isinstance(other, self.__class__):
-            return self.__dict__ == other.__dict__
-        return NotImplemented
+    def add_edge(self, l, r):
+        if self._counter >= self._threshold:
+            return
+        if r not in self._graph[l]:
+            self._counter += 1
+            self._graph[l].add(r)
+            self._graph[r].add(l)
 
-    def __ne__(self, other):
-        return not self.__eq__(other)
+    def set_threshold(self, threshold):
+        self._threshold = threshold
 
-    def __hash__(self):
-        return hash(tuple(sorted(self.__dict__.items())))
+    def is_saturated(self):
+        return self._counter >= self._threshold
+
+    def get_edges(self):
+        edges = []
+        for key in self._graph:
+            for value in self._graph[key]:
+                if key < value:
+                    edges.append((key, value))
+        return edges
 
 
 def main(argv):
@@ -173,7 +187,8 @@ def gen_sub(num_clause, edge_size, const_factor):
     for i in range(0, num_clause):
         clause = Clause()
         # invariant: num_rem_edge >= num_visible_edge
-        sample_size_covered = random.randint(max(0, edge_size - num_visible_edge), min(num_rem_edge - num_visible_edge, edge_size, num_covered_edge))
+        sample_size_covered = random.randint(max(0, edge_size - num_visible_edge),
+                                             min(num_rem_edge - num_visible_edge, edge_size, num_covered_edge))
         sample_size_uncovered = edge_size - sample_size_covered
         if sample_size_covered > 0:
             covered = [i for i, e in enumerate(edge_flags) if not e]
@@ -199,23 +214,23 @@ def gen_edges(num_visible_edge, const_factor):
     delta = round(const_factor * (const_max - const_min))
     const_num = const_min + delta
     # add basic edges first
-    edges = []
-    edges_all = set()
-    for i in range(0, const_num):
-        for j in range(0, i):
-            edges_all.add(Edge(i, j))
+    graph = Graph()
+    graph.set_threshold(num_visible_edge)
     for i in range(0, const_num, 2):
-        basic_edge = Edge(i + 1, i)
-        if i + 1 == const_num:
-            basic_edge = Edge(i, 0)
-        edges_all.remove(basic_edge)
-        edges.append(basic_edge)
-    # sample the remaining edges
-    rem_edge_num = num_visible_edge - len(edges)
-    edges_list = list(edges_all)
-    rem_edges = random.sample(edges_list, rem_edge_num)
-    edges.extend(rem_edges)
-    return edges, const_num
+        graph.add_edge((i + 1) % const_num, i)
+    if not graph.is_saturated():
+        # sample the remaining edges
+        # sample `num_visible_edge` edges first
+        total_edge_num = int((const_num - 1) * const_num / 2)
+        candidates = random.sample(range(1, total_edge_num + 1), num_visible_edge)
+        # decode the candidate number to the edge
+        for candidate in candidates:
+            # calculate the row and column of certain tuple
+            row = math.ceil((math.sqrt(1 + 8 * candidate) - 1) / 2)
+            column = int(candidate - (row - 1) * row / 2) - 1
+            # add them to the graph
+            graph.add_edge(row, column)
+    return graph.get_edges(), const_num
 
 
 def output_formula(problem, i, output_dir, ws):

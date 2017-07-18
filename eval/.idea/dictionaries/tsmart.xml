@@ -2,6 +2,7 @@
   <dictionary name="tsmart">
     <words>
       <w>taskset</w>
+      <w>xlsx</w>
     </words>
   </dictionary>
 </component>
