@@ -53,6 +53,11 @@ std::map<int, model> model_list;
 
 bool need_term = false;
 
+#ifdef PZ3_PROFILING
+boost::chrono::milliseconds subsolve_time = boost::chrono::milliseconds::zero();
+boost::chrono::milliseconds conciliate_time = boost::chrono::milliseconds::zero();
+#endif
+
 // for parallel control
 pthread_mutex_t err_mutex;
 pthread_barrier_t crea_barrier;
@@ -199,7 +204,7 @@ PZ3_Result solve_file()
 #endif
 
 #ifdef PZ3_PROFILING
-	boost_clock::time_point subsolve_start = boost_clock::now();
+    boost_clock::time_point subsolve_start = boost_clock::now();
 #endif
 
     // Solve sub-formuals in parallel
@@ -230,11 +235,7 @@ PZ3_Result solve_file()
     free(thread_handles);
 
 #ifdef PZ3_PROFILING
-	std::cout << "SUBSOLVE: " << boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - subsolve_start) << std::endl;
-#endif
-
-#ifdef PZ3_PROFILING
-	boost_clock::time_point conciliate_start = boost_clock::now();
+	subsolve_time += boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - subsolve_start);
 #endif
 
     // Step 2: Reconciliation
@@ -297,7 +298,8 @@ PZ3_Result solve_file()
     }
 
 #ifdef PZ3_PROFILING
-	std::cout << "CONCILIATION: " << boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - conciliate_start) << std::endl;
+    std::cout << "SUBSOLVE: " << subsolve_time << std::endl;
+    std::cout << "CONCILIATION: " << conciliate_time << std::endl;
 #endif
 
     switch ((long) tret)
@@ -838,6 +840,12 @@ void assoc_funs(expr in_fs, std::set<unsigned> &funs, std::map<unsigned, func_de
 
 void *master_func(void *arg)
 {
+#ifdef PZ3_PROFILING
+    boost_clock::time_point subsolve_start;
+    boost_clock::time_point conciliate_start;
+
+    conciliate_start = boost_clock::now();
+#endif
     long return_val = 2;
     context &m_ctx = cm.get_s_ctx();
     // fi_vec: used to store function instances in shared context
@@ -915,6 +923,10 @@ void *master_func(void *arg)
     }
     // initially there is no shared function instance
 
+#ifdef PZ3_PROFILING
+    conciliate_time += boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - conciliate_start);
+#endif
+
 #ifdef PZ3_PRINT_TRACE
     pthread_mutex_lock(&err_mutex);
     std::cout << "Master thread preparation completed" << std::endl;
@@ -923,16 +935,27 @@ void *master_func(void *arg)
 
     while (true)
     {
+#ifdef PZ3_PROFILING
+        subsolve_start = boost_clock::now();
+#endif
         pthread_barrier_wait(&barrier1);
         if (need_term)
             break;
         pthread_barrier_wait(&barrier2);
+#ifdef PZ3_PROFILING
+        subsolve_time += boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - subsolve_start);
+#endif
         // check "check_result" of sub-formulas
 #ifdef PZ3_PRINT_TRACE
         pthread_mutex_lock(&err_mutex);
         std::cout << "Master thread working" << std::endl;
         pthread_mutex_unlock(&err_mutex);
 #endif
+
+#ifdef PZ3_PROFILING
+        conciliate_start = boost_clock::now();
+#endif
+
         bool allsat = true;
         for (unsigned i = 0; i < core_num; i++)
         {
@@ -1133,6 +1156,10 @@ void *master_func(void *arg)
                 break;
             }
         }
+
+#ifdef PZ3_PROFILING
+        conciliate_time += boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - conciliate_start);
+#endif
 
     }
 
