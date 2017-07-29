@@ -54,7 +54,7 @@ def evaluate(tool, bench_dir, max_core, timeout, export_stat):
         smt_files = [os.path.join(root, f) for f in files if f.endswith(".smt2")]
         for smt_file in smt_files:
             args.append(smt_file)
-            for num_core in range(2, max_core + 1):
+            for num_core in range(max_core, max_core + 1):
                 args.append(str(num_core))
                 timeout_value = timeout * num_core if timeout > 0 else None
                 try:
