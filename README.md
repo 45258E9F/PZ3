@@ -50,12 +50,12 @@ Note
 
 ```c
 void Z3_API Z3_interpolate_proof(Z3_context ctx,
-                            Z3_ast proof,
-                            int num,
-                            Z3_ast *cnsts,
-                            unsigned *parents,
-                            Z3_params options,
-                            Z3_ast *interps,
-                            int num_theory,
-                            Z3_ast *theory);
+                                 Z3_ast proof,
+                                 int num,
+                                 Z3_ast *cnsts,
+                                 unsigned *parents,
+                                 Z3_params options,
+                                 Z3_ast *interps,
+                                 int num_theory,
+                                 Z3_ast *theory);
 ```
