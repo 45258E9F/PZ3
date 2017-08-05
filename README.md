@@ -1,6 +1,6 @@
 Download
 --------
-__Download PZ3 (with benchmark files)__: http://git.io/jYKU
+__Download PZ3 (Beta 2 updated in 2017-8-5)__: https://git.io/v7wN5
 
 Introduction
 -------------
