@@ -489,6 +489,9 @@ void fs_to_cnf(int const my_rank, expr &fs, expr_vector &list)
 
 void *subsolve(void *rank)
 {
+#ifdef PZ3_PROFILING
+    boost_clock::time_point subsolve_start = boost_clock::now();
+#endif
     long my_rank_l = (long) rank;
     int my_rank = (int) my_rank_l;
     context &ctx = cm.get_q_ctx(my_rank);
@@ -500,6 +503,12 @@ void *subsolve(void *rank)
         pthread_mutex_lock(&err_mutex);
 #ifdef PZ3_PRINT_TRACE
         std::cout << "From thread " << my_rank << ": unsat\n";
+#endif
+        // before exit, we should output the subsolve time
+#ifdef PZ3_PROFILING
+	    subsolve_time += boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - subsolve_start);
+        std::cout << "SUBSOLVE: " << subsolve_time << std::endl;
+        std::cout << "CONCILIATION: " << conciliate_time << std::endl;
 #endif
         std::cout << "unsat" << std::endl;
         exit(0);
