@@ -4,7 +4,7 @@ __Download PZ3 (Beta 2 updated in 2017-8-5)__: https://git.io/v7wN5
 
 Introduction
 -------------
-PZ3 is a parallel SMT solver from the paper "Parallelizing SMT Solving: Lazy Decomposition + Conciliation". It is based on Z3 project(http://z3.codeplex.com) by Microsoft Research. Although PZ3 only supports QF_UF theory for now, we plan to extend PZ3 to support other popular theories such as QF_DL, QF_LRA.
+PZ3 is a parallel SMT solver from the paper "Parallelizing SMT Solving: Lazy Decomposition + Conciliation". It is based on Z3 project(https://github.com/Z3Prover/z3) by Microsoft Research. Although PZ3 only supports QF_UF theory for now, we plan to extend PZ3 to support other popular theories such as QF_DL, QF_LRA.
 
 Requirements
 -------------
@@ -17,7 +17,7 @@ Memory: 8GB or higher
 
 Building & Configuration
 ---------------------------
-**1.** Download source code of Z3 from http://z3.codeplex.com/. You can download Z3 4.3.2 from master branch or 4.3.3 from unstable branch. Please ensure that you are not using an older Z3 because old version has relatively poor support on interpolation. (UPDATE: If you use Z3 4.4.0 or higher, PZ3 would have segmentation fault due to some changes on interpolation API)
+**1.** Download source code of Z3 from https://github.com/Z3Prover/z3. You can download Z3 4.3.2 from master branch or 4.3.3 from unstable branch. Please ensure that you are not using an older Z3 because old version has relatively poor support on interpolation. (UPDATE: If you use Z3 4.4.0 or higher, PZ3 would have segmentation fault due to some changes on interpolation API)
 
 **2.** Build Z3 from source and install it using the following commands:
 
