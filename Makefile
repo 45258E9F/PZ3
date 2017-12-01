@@ -4,12 +4,18 @@ include config.mk
 all: pz3$(EXE_EXT)
 
 .PHONY: profile
+fgprof: pz3_fg$(EXE_EXT)
 profile: pz3_prof$(EXE_EXT)
 onecore: pz3_oc$(EXE_EXT)
 
 pz3$(EXE_EXT): core$(CXX_EXT) contextManager$(OBJ_EXT) dist/dist$(OBJ_EXT)
 	@$(CXX) $(CXXFLAGS) $(LINK_OUT_FLAG) pz3$(EXE_EXT) $^ $(LINK_EXTRA_FLAGS)
 	@echo compiled core.cpp
+
+pz3_fg$(EXE_EXT): core$(CXX_EXT) contextManager$(OBJ_EXT) dist/dist$(OBJ_EXT)
+	@$(CXX) $(MACRO_FLAG)$(FG_MACRO) $(CXXFLAGS) $(LINK_OUT_FLAG) pz3_fg$(EXE_EXT) $^ $(LINK_EXTRA_FLAGS)
+	@echo compiled core.cpp
+	@echo generated executable with fine-grained profiling
 
 pz3_prof$(EXE_EXT): core$(CXX_EXT) contextManager$(OBJ_EXT) dist/dist$(OBJ_EXT)
 	@$(CXX) $(MACRO_FLAG)$(PROFILE_MACRO) $(CXXFLAGS) $(LINK_OUT_FLAG) pz3_prof$(EXE_EXT) $^ $(LINK_EXTRA_FLAGS)

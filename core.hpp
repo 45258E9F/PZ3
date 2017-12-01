@@ -9,6 +9,7 @@
 #include <list>
 #include <cstdlib>
 #include <ctime>
+#include <boost/atomic.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/chrono.hpp>
 
