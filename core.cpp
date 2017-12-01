@@ -543,6 +543,9 @@ void *subsolve(void *rank)
     boost_clock::time_point solve_start = boost_clock::now();
     boost::chrono::milliseconds subsolve_time;
 #endif
+#ifdef PZ3_PROFILING
+    boost_clock::time_point subsolve_start = boost_clock::now();
+#endif
     long my_rank_l = (long) rank;
     int my_rank = (int) my_rank_l;
     context &ctx = cm.get_q_ctx(my_rank);
@@ -555,10 +558,16 @@ void *subsolve(void *rank)
 #ifdef PZ3_PRINT_TRACE
         std::cout << "From thread " << my_rank << ": unsat\n";
 #endif
+        // before exit, we should output the subsolve time
+#ifdef PZ3_PROFILING
+	    subsolve_time += boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - subsolve_start);
+        std::cout << "SUBSOLVE: " << subsolve_time << std::endl;
+        std::cout << "CONCILIATION: " << conciliate_time << std::endl;
+#endif
         std::cout << "unsat" << std::endl;
 #ifdef PZ3_FINE_GRAINED_PROF
-            subsolve_time = boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - solve_start);
-            solve_time.fetch_add(subsolve_time.count(), boost::memory_order_relaxed);
+        subsolve_time = boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - solve_start);
+        solve_time.fetch_add(subsolve_time.count(), boost::memory_order_relaxed);
 #endif
         exit(0);
     case sat:
@@ -568,8 +577,8 @@ void *subsolve(void *rank)
         pthread_mutex_unlock(&err_mutex);
 #endif
 #ifdef PZ3_FINE_GRAINED_PROF
-            subsolve_time = boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - solve_start);
-            solve_time.fetch_add(subsolve_time.count(), boost::memory_order_relaxed);
+        subsolve_time = boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - solve_start);
+        solve_time.fetch_add(subsolve_time.count(), boost::memory_order_relaxed);
 #endif
         break;
     default:
@@ -579,8 +588,8 @@ void *subsolve(void *rank)
         pthread_mutex_unlock(&err_mutex);
 #endif
 #ifdef PZ3_FINE_GRAINED_PROF
-            subsolve_time = boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - solve_start);
-            solve_time.fetch_add(subsolve_time.count(), boost::memory_order_relaxed);
+        subsolve_time = boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - solve_start);
+        solve_time.fetch_add(subsolve_time.count(), boost::memory_order_relaxed);
 #endif
         return NULL;
     }
