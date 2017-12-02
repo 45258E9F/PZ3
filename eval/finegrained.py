@@ -63,7 +63,7 @@ def evaluate(tool, bench_dir, core, timeout, export_stat):
                     raw_result.append((smt_file, duration))
             except subprocess.TimeoutExpired:
                 # in this case, we discard partial results if any
-                raw_result.append((smt_file, ('*', '*', '*', '*', '*')))
+                raw_result.append((smt_file, ('*', '*', '*', '*', '*', '*')))
             export_result(raw_result, export_stat)
             raw_result.clear()
             print(smt_file)
@@ -79,6 +79,7 @@ def load_duration(output_str):
     interp_time = '*'
     formulate_time = '*'
     ssr_time = '*'
+    gs_time = '*'
     lines = output_str.decode('utf-8').split('\n')
     for line in lines:
         match = re.match(time_pattern, line)
@@ -95,7 +96,9 @@ def load_duration(output_str):
                 ssr_time = int(time_metric)
             elif time_name == 'FORM':
                 formulate_time = int(time_metric)
-    return decomp_time, solve_time, interp_time, formulate_time, ssr_time
+            elif time_name == 'GENSOLVE':
+                gs_time = int(time_metric)
+    return decomp_time, solve_time, interp_time, formulate_time, ssr_time, gs_time
 
 case_name_column = 1
 decomp_column = 2
@@ -103,6 +106,7 @@ solve_column = 3
 interp_column = 4
 formulate_column = 5
 ssr_column = 6
+gs_column = 7
 
 
 def export_result(raw_result, export_stat):
@@ -116,13 +120,14 @@ def export_result(raw_result, export_stat):
         row_pointer = ws.max_row + 1
     for result in raw_result:
         case_name, time_result = result
-        decomp_time, solve_time, interp_time, formulate_time, ssr_time = time_result
+        decomp_time, solve_time, interp_time, formulate_time, ssr_time, gs_time = time_result
         ws.cell(row=row_pointer, column=case_name_column).value = case_name
         ws.cell(row=row_pointer, column=decomp_column).value = decomp_time
         ws.cell(row=row_pointer, column=solve_column).value = solve_time
         ws.cell(row=row_pointer, column=interp_column).value = interp_time
         ws.cell(row=row_pointer, column=formulate_column).value = formulate_time
         ws.cell(row=row_pointer, column=ssr_column).value = ssr_time
+        ws.cell(row=row_pointer, column=gs_column).value = gs_time
         row_pointer += 1
     wb.save(filename=export_stat)
 
