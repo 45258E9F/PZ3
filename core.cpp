@@ -58,6 +58,14 @@ boost::chrono::milliseconds subsolve_time = boost::chrono::milliseconds::zero();
 boost::chrono::milliseconds conciliate_time = boost::chrono::milliseconds::zero();
 #endif
 
+#ifdef PZ3_FINE_GRAINED_PROF
+boost::atomic<long long> decomp_time(0);
+boost::atomic<long long> solve_time(0);
+boost::atomic<long long> interp_time(0);
+boost::atomic<long long> formulate_time(0);
+boost::atomic<long long> ssr_time(0);
+#endif
+
 // for parallel control
 pthread_mutex_t err_mutex;
 pthread_barrier_t crea_barrier;
@@ -169,6 +177,9 @@ PZ3_Result solve_file()
     }
     free(thread_handles);
 
+#ifdef PZ3_FINE_GRAINED_PROF
+    boost_clock::time_point division_start = boost_clock::now();
+#endif
     // Combining clauses in each core into formula
     for (unsigned i = 0; i < core_num; i++)
     {
@@ -188,6 +199,11 @@ PZ3_Result solve_file()
         }
         expr_list.push_back(sprb);
     }
+#ifdef PZ3_FINE_GRAINED_PROF
+    boost::chrono::milliseconds division_time = boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - division_start);
+    decomp_time.fetch_add(division_time.count(), boost::memory_order_relaxed);
+    std::cout << "DECOMP: " << decomp_time << std::endl;
+#endif
 
 #ifdef PZ3_DIST
     for(unsigned i = 0; i < core_num; i++)
@@ -236,6 +252,9 @@ PZ3_Result solve_file()
 
 #ifdef PZ3_PROFILING
 	subsolve_time += boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - subsolve_start);
+#endif
+#ifdef PZ3_FINE_GRAINED_PROF
+    std::cout << "SOLVE: " << solve_time << std::endl;
 #endif
 
     // Step 2: Reconciliation
@@ -302,6 +321,13 @@ PZ3_Result solve_file()
     std::cout << "CONCILIATION: " << conciliate_time << std::endl;
 #endif
 
+#ifdef PZ3_FINE_GRAINED_PROF
+    std::cout << "INTERP: " << interp_time << std::endl;
+    std::cout << "FORM: " << formulate_time << std::endl;
+    std::cout << "SSR: " << ssr_time << std::endl;
+    std::cout << "GENSOLVE: " << solve_time << std::endl;
+#endif
+
     switch ((long) tret)
     {
     case 0:
@@ -317,6 +343,10 @@ PZ3_Result solve_file()
 
 void *division(void *rank)
 {
+#ifdef PZ3_FINE_GRAINED_PROF
+    boost_clock::time_point div_start = boost_clock::now();
+    boost::chrono::milliseconds div_time = boost::chrono::milliseconds::zero();
+#endif
     long my_rank_l = (long) rank;
     int my_rank = (int) my_rank_l;
     config cfg;
@@ -364,18 +394,29 @@ void *division(void *rank)
         expr_var = std::vector<std::map<unsigned, int> >(num_clause);
         expr_fun = std::vector<std::map<unsigned, int> >(num_clause);
     }
+#ifdef PZ3_FINE_GRAINED_PROF
+    div_time += boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - div_start);
+#endif
     pthread_barrier_wait(&crea_barrier);
-
+#ifdef PZ3_FINE_GRAINED_PROF
+    div_start = boost_clock::now();
+#endif
     for (int i = my_rank; i < num_clause; i += core_num)
     {
         assert(expr_var.at(i).size() == 0);
         assert(expr_fun.at(i).size() == 0);
         get_vars(list[i], expr_var.at(i), expr_fun.at(i));
     }
+#ifdef PZ3_FINE_GRAINED_PROF
+    div_time += boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - div_start);
+#endif
     pthread_barrier_wait(&stat_barrier);
 
     if (my_rank == PZ3_MASTER_THREAD)
     {
+#ifdef PZ3_FINE_GRAINED_PROF
+        div_start = boost_clock::now();
+#endif
         // merge all symbols in each clause and calculate weight of each clause
         std::set<unsigned> symbol_set;
         std::vector<int> clause_weight = std::vector<int>(num_clause, 0);
@@ -404,9 +445,15 @@ void *division(void *rank)
         }
 
         dist_clause(symbol_set, symbol_sub, clause_weight);
+#ifdef PZ3_FINE_GRAINED_PROF
+        div_time += boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - div_start);
+#endif
     }
     pthread_barrier_wait(&dist_barrier);
 
+#ifdef PZ3_FINE_GRAINED_PROF
+    div_start = boost_clock::now();
+#endif
     // Generate expression for corresponding core
     assert(expr_dist.size() == list.size());
     for (int i = 0; i < num_clause; i++)
@@ -417,6 +464,10 @@ void *division(void *rank)
             expr_table.at(my_rank).push_back(list[i]);
         }
     }
+#ifdef PZ3_FINE_GRAINED_PROF
+    div_time += boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - div_start);
+    decomp_time.fetch_add(div_time.count(), boost::memory_order_relaxed);
+#endif
 
     return NULL;
 }
@@ -489,6 +540,10 @@ void fs_to_cnf(int const my_rank, expr &fs, expr_vector &list)
 
 void *subsolve(void *rank)
 {
+#ifdef PZ3_FINE_GRAINED_PROF
+    boost_clock::time_point solve_start = boost_clock::now();
+    boost::chrono::milliseconds subsolve_time;
+#endif
 #ifdef PZ3_PROFILING
     boost_clock::time_point subsolve_start = boost_clock::now();
 #endif
@@ -504,13 +559,23 @@ void *subsolve(void *rank)
 #ifdef PZ3_PRINT_TRACE
         std::cout << "From thread " << my_rank << ": unsat\n";
 #endif
-        // before exit, we should output the subsolve time
 #ifdef PZ3_PROFILING
-	    subsolve_time += boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - subsolve_start);
+        // before exit, we should output the subsolve time
+        subsolve_time += boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - subsolve_start);
         std::cout << "SUBSOLVE: " << subsolve_time << std::endl;
         std::cout << "CONCILIATION: " << conciliate_time << std::endl;
 #endif
         std::cout << "unsat" << std::endl;
+#ifdef PZ3_FINE_GRAINED_PROF
+            // before exit, we should output time metrics
+        subsolve_time = boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - solve_start);
+        solve_time.fetch_add(subsolve_time.count(), boost::memory_order_relaxed);
+        std::cout << "SOLVE: " << solve_time << std::endl;
+        std::cout << "INTERP: " << 0 << std::endl;
+        std::cout << "SSR: " << 0 << std::endl;
+        std::cout << "FORM: " << 0 << std::endl;
+        std::cout << "GENSOLVE: " << solve_time << std::endl;
+#endif
         exit(0);
     case sat:
 #ifdef PZ3_PRINT_TRACE
@@ -518,12 +583,20 @@ void *subsolve(void *rank)
         std::cout << "From thread " << my_rank << ": sat\n";
         pthread_mutex_unlock(&err_mutex);
 #endif
+#ifdef PZ3_FINE_GRAINED_PROF
+        subsolve_time = boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - solve_start);
+        solve_time.fetch_add(subsolve_time.count(), boost::memory_order_relaxed);
+#endif
         break;
     default:
 #ifdef PZ3_PRINT_TRACE
         pthread_mutex_lock(&err_mutex);
         std::cout << "From thread " << my_rank << ": unknown\n";
         pthread_mutex_unlock(&err_mutex);
+#endif
+#ifdef PZ3_FINE_GRAINED_PROF
+        subsolve_time = boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - solve_start);
+        solve_time.fetch_add(subsolve_time.count(), boost::memory_order_relaxed);
 #endif
         return NULL;
     }
@@ -855,6 +928,10 @@ void *master_func(void *arg)
 
     conciliate_start = boost_clock::now();
 #endif
+#ifdef PZ3_FINE_GRAINED_PROF
+    boost_clock::time_point master_start;
+    boost::chrono::milliseconds master_time;
+#endif
     long return_val = 2;
     context &m_ctx = cm.get_s_ctx();
     // fi_vec: used to store function instances in shared context
@@ -862,6 +939,9 @@ void *master_func(void *arg)
     solver sv_solve(m_ctx);
     bool pure_literal = false;
 
+#ifdef PZ3_FINE_GRAINED_PROF
+    master_start = boost_clock::now();
+#endif
     // get hash value of TRUE and FALSE
     unsigned bool_id = m_ctx.bool_sort().hash();
     unsigned true_id = m_ctx.bool_val(true).hash();
@@ -931,6 +1011,10 @@ void *master_func(void *arg)
         svexpr.insert(std::pair<unsigned, closure>(svit->first, myclo));
     }
     // initially there is no shared function instance
+#ifdef PZ3_FINE_GRAINED_PROF
+    master_time = boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - master_start);
+    ssr_time.fetch_add(master_time.count(), boost::memory_order_relaxed);
+#endif
 
 #ifdef PZ3_PROFILING
     conciliate_time += boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - conciliate_start);
@@ -963,6 +1047,9 @@ void *master_func(void *arg)
 
 #ifdef PZ3_PROFILING
         conciliate_start = boost_clock::now();
+#endif
+#ifdef PZ3_FINE_GRAINED_PROF
+        master_start = boost_clock::now();
 #endif
 
         bool allsat = true;
@@ -1169,6 +1256,10 @@ void *master_func(void *arg)
 #ifdef PZ3_PROFILING
         conciliate_time += boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - conciliate_start);
 #endif
+#ifdef PZ3_FINE_GRAINED_PROF
+        master_time = boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - master_start);
+        ssr_time.fetch_add(master_time.count(), boost::memory_order_relaxed);
+#endif
 
     }
 
@@ -1177,6 +1268,10 @@ void *master_func(void *arg)
 
 void *slave_func(void *arg)
 {
+#ifdef PZ3_FINE_GRAINED_PROF
+    boost_clock::time_point slave_start;
+    boost::chrono::milliseconds slave_time;
+#endif
     long my_rank_l = (long) arg;
     int my_rank = (int) my_rank_l;
     std::map<unsigned, expr> &my_var = var_expr.at(my_rank);
@@ -1219,7 +1314,10 @@ void *slave_func(void *arg)
         std::cout << "Slave thread " << my_rank << " working" << std::endl;
         pthread_mutex_unlock(&err_mutex);
 #endif
-        
+
+#ifdef PZ3_FINE_GRAINED_PROF
+        slave_start = boost_clock::now();
+#endif
         // Step 1: localization
         std::vector<local_func_inst> result;
         // extract non-empty closure for following works
@@ -1353,6 +1451,10 @@ void *slave_func(void *arg)
             Z3_ast and_fs = Z3_mk_and(my_ctx, cnsts_len, _cnsts_list.ptr());
             constr_expr = to_expr(my_ctx, and_fs);
         }
+#ifdef PZ3_FINE_GRAINED_PROF
+        slave_time = boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - slave_start);
+        formulate_time.fetch_add(slave_time.count(), boost::memory_order_relaxed);
+#endif
 
         // Step 4: two contraint expressions are constructed
         // (1) expr_list.at(my_rank)
@@ -1373,6 +1475,9 @@ void *slave_func(void *arg)
         pthread_mutex_unlock(&err_mutex);
         #endif
 
+#ifdef PZ3_FINE_GRAINED_PROF
+        slave_start = boost_clock::now();
+#endif
         solver solve(my_ctx);
         solve.add(expr_list.at(my_rank));
         solve.add(constr_expr);
@@ -1380,6 +1485,11 @@ void *slave_func(void *arg)
         {
             case unsat:
             {
+#ifdef PZ3_FINE_GRAINED_PROF
+                slave_time = boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - slave_start);
+                solve_time.fetch_add(slave_time.count(), boost::memory_order_relaxed);
+                slave_start = boost_clock::now();
+#endif
                 expr proof = solve.proof();
                 array<Z3_ast> _sts(2);
                 _sts[0] = expr_list.at(my_rank);
@@ -1393,10 +1503,18 @@ void *slave_func(void *arg)
                 expr interp = to_expr(my_ctx, _interp);
                 checklist.at(my_rank) = unsat;
                 interpo_list.at(my_rank) = interp;
+#ifdef PZ3_FINE_GRAINED_PROF
+                slave_time = boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - slave_start);
+                interp_time.fetch_add(slave_time.count(), boost::memory_order_relaxed);
+#endif
             }
             break;
             case sat:
             {
+#ifdef PZ3_FINE_GRAINED_PROF
+                slave_time = boost::chrono::duration_cast<boost::chrono::milliseconds> (boost_clock::now() - slave_start);
+                solve_time.fetch_add(slave_time.count(), boost::memory_order_relaxed);
+#endif
                 model sat_model = solve.get_model();
                 checklist.at(my_rank) = sat;
                 // Push a model to model_list
